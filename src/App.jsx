@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 
 import Login from "./screens/auth/Login.jsx";
@@ -26,6 +26,9 @@ function App() {
       {!hideNavbar && <Navbar />}
 
       <Routes>
+        {/* DEFAULT ROUTE - ALWAYS OPEN REGISTER FIRST */}
+        <Route path="/" element={<Navigate to="/register" />} />
+
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 

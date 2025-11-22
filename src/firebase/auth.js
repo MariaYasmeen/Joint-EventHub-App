@@ -14,7 +14,11 @@ import { doc, setDoc, getDoc } from "firebase/firestore";
 ------------------------------------------------------- */
 export const registerUser = async (name, email, password, role) => {
   try {
-    // Create user in Firebase Auth
+    if (!name || !email || !password || !role) {
+      return { success: false, error: "All fields are required." };
+    }
+
+    // Create user
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       email,
@@ -23,27 +27,31 @@ export const registerUser = async (name, email, password, role) => {
 
     const user = userCredential.user;
 
-    // Save user profile in Firestore
+    // Save profile to Firestore
     await setDoc(doc(db, "users", user.uid), {
       uid: user.uid,
       name,
       email,
       role,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(),
     });
 
     return { success: true, user };
   } catch (error) {
-    return { success: false, error: cleanError(error) };
+    return { success: false, error: mapAuthError(error) };
   }
 };
 
 /* -------------------------------------------------------
-   LOGIN USER (Auth + Fetch Firestore User Profile)
+   LOGIN USER
 ------------------------------------------------------- */
 export const loginUser = async (email, password) => {
   try {
-    // Firebase Auth login
+    if (!email || !password) {
+      return { success: false, error: "Email and password are required." };
+    }
+
+    // Login user
     const userCredential = await signInWithEmailAndPassword(
       auth,
       email,
@@ -52,20 +60,21 @@ export const loginUser = async (email, password) => {
 
     const user = userCredential.user;
 
-    // Fetch Firestore user data
-    const profile = await getDoc(doc(db, "users", user.uid));
+    // Fetch user profile from Firestore
+    const profileRef = doc(db, "users", user.uid);
+    const profileSnapshot = await getDoc(profileRef);
 
-    if (!profile.exists()) {
+    if (!profileSnapshot.exists()) {
       return { success: false, error: "User profile not found." };
     }
 
     return {
       success: true,
       user,
-      data: profile.data(),
+      data: profileSnapshot.data(),
     };
   } catch (error) {
-    return { success: false, error: cleanError(error) };
+    return { success: false, error: mapAuthError(error) };
   }
 };
 
@@ -77,19 +86,30 @@ export const logoutUser = async () => {
     await signOut(auth);
     return { success: true };
   } catch (error) {
-    return { success: false, error: cleanError(error) };
+    return { success: false, error: mapAuthError(error) };
   }
 };
 
 /* -------------------------------------------------------
-   CLEAN FIREBASE ERROR MESSAGE
+   FRIENDLY FIREBASE ERROR MESSAGES
 ------------------------------------------------------- */
-const cleanError = (error) => {
-  if (!error.message) return "Unknown error";
+const mapAuthError = (error) => {
+  const code = error.code;
 
-  return error.message
-    .replace("Firebase:", "")
-    .replace("auth/", "")
-    .replace(/\(.*\)/, "")
-    .trim();
+  switch (code) {
+    case "auth/email-already-in-use":
+      return "This email is already registered.";
+    case "auth/invalid-email":
+      return "Please enter a valid email address.";
+    case "auth/weak-password":
+      return "Password must be at least 6 characters.";
+    case "auth/user-not-found":
+      return "No user found with this email.";
+    case "auth/wrong-password":
+      return "Incorrect password. Try again.";
+    case "auth/too-many-requests":
+      return "Too many attempts. Please try again later.";
+    default:
+      return error.message?.replace("Firebase:", "").trim() || "Unknown error.";
+  }
 };
