@@ -35,22 +35,22 @@ function App() {
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ----------------------------------------
+  // -------------------------------------------------------
   // AUTH LISTENER — RUNS ONCE
-  // ----------------------------------------
+  // -------------------------------------------------------
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
 
-        // Fetch role
+        // Fetch role from Firestore
         const docRef = doc(db, "users", currentUser.uid);
         const docSnap = await getDoc(docRef);
 
         let fetchedRole = docSnap.exists() ? docSnap.data().role : null;
 
-        // FORCE MANAGER FOR ALI
-        if (currentUser.email === "ali@gmail.com") {
+        // 🔥 FORCE MANAGER ROLE FOR NEW MANAGER EMAIL
+        if (currentUser.email === "manager@fjwu.edu.pk") {
           fetchedRole = "manager";
         }
 
@@ -68,30 +68,32 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  // ----------------------------------------
+  // -------------------------------------------------------
   // LOADING SCREEN (PREVENT UI FLASH)
-  // ----------------------------------------
+  // -------------------------------------------------------
   if (loading) {
     return (
-      <div style={{ 
-        height: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        fontSize: "24px",
-        fontWeight: "bold"
-      }}>
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          fontSize: "24px",
+          fontWeight: "bold",
+        }}
+      >
         Loading...
       </div>
     );
   }
 
-  // ----------------------------------------
+  // -------------------------------------------------------
   // PROTECTED ROUTE
-  // ----------------------------------------
+  // -------------------------------------------------------
   const ProtectedRoute = ({ children, allowed }) => {
     if (!user) return <Navigate to="/login" replace />;
-    if (allowed && !allowed.includes(role)) return <Navigate to="/" replace />;
+    if (!allowed.includes(role)) return <Navigate to="/" replace />;
     return children;
   };
 
@@ -107,18 +109,18 @@ function App() {
     <ProtectedRoute allowed={["student", "manager"]}>{children}</ProtectedRoute>
   );
 
-  // ----------------------------------------
-  // AUTH ROUTE PROTECTION (LOGIN/REGISTER)
-  // ----------------------------------------
+  // -------------------------------------------------------
+  // AUTH ROUTES (LOGIN/REGISTER REDIRECTION)
+  // -------------------------------------------------------
   const AuthRedirect = ({ children }) => {
     if (user && role === "student") return <Navigate to="/events" replace />;
     if (user && role === "manager") return <Navigate to="/create-event" replace />;
     return children;
   };
 
-  // ----------------------------------------
+  // -------------------------------------------------------
   // DEFAULT REDIRECT
-  // ----------------------------------------
+  // -------------------------------------------------------
   const defaultRedirect = () => {
     if (role === "manager") return "/create-event";
     if (role === "student") return "/events";

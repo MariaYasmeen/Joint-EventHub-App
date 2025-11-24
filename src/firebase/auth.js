@@ -1,5 +1,5 @@
 // src/firebase/auth.js
-import { auth, db } from "./firebaseConfig";
+import { auth, db } from "../firebase/firebaseConfig";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -9,8 +9,8 @@ import { doc, setDoc, getDoc } from "firebase/firestore";
 
 /* -------------------------------------------------------
    REGISTER USER (Auth + Firestore Profile)
-   Only @cs.fjwu.edu.pk emails allowed for students
-   Manager only: ali@gmail.com
+   Student domain = @fjwu.edu.pk
+   Manager account = manager@fjwu.edu.pk (cannot register)
 ------------------------------------------------------- */
 export const registerUser = async (name, email, password) => {
   try {
@@ -20,25 +20,32 @@ export const registerUser = async (name, email, password) => {
 
     let role = "student"; // default role
 
-    // Manager check
-    if (email === "ali@gmail.com") {
-      return { success: false, error: "Manager registration is restricted." };
+    // ❌ Manager cannot register
+    if (email === "manager@fjwu.edu.pk") {
+      return {
+        success: false,
+        error: "Manager account cannot be created here.",
+      };
     }
 
-    // Email domain restriction for students
-    const allowedDomain = "@cs.fjwu.edu.pk";
+    // ✅ Student email validation
+    const allowedDomain = "@fjwu.edu.pk";
     if (!email.endsWith(allowedDomain)) {
       return {
         success: false,
-        error: `Only FJWU CS students can register. Use your ${allowedDomain} email.`,
+        error: `Only FJWU students can register. Use your ${allowedDomain} email.`,
       };
     }
 
     // Create user in Firebase Auth
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
     const user = userCredential.user;
 
-    // Create profile document in Firestore
+    // Save profile in Firestore
     const profile = {
       uid: user.uid,
       name,
@@ -60,7 +67,9 @@ export const registerUser = async (name, email, password) => {
 
 /* -------------------------------------------------------
    LOGIN USER
-   Assign role automatically (manager or student)
+   Auto-assign role:
+   manager@fjwu.edu.pk → manager
+   students → student
 ------------------------------------------------------- */
 export const loginUser = async (email, password) => {
   try {
@@ -68,11 +77,15 @@ export const loginUser = async (email, password) => {
       return { success: false, error: "Email and password are required." };
     }
 
-    // Firebase Auth login
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    // Firebase Login
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
     const user = userCredential.user;
 
-    // Get profile from Firestore
+    // Read Firestore profile
     const profileRef = doc(db, "users", user.uid);
     const profileSnapshot = await getDoc(profileRef);
 
@@ -82,12 +95,12 @@ export const loginUser = async (email, password) => {
 
     let profileData = profileSnapshot.data();
 
-    // Force manager role for ali@gmail.com
-    if (user.email === "ali@gmail.com") {
+    // ✅ FORCE MANAGER ROLE
+    if (user.email === "manager@fjwu.edu.pk") {
       profileData.role = "manager";
     }
 
-    // Save role locally for routing
+    // Save role locally
     localStorage.setItem("userRole", profileData.role);
 
     return { success: true, user, data: profileData };
@@ -102,7 +115,7 @@ export const loginUser = async (email, password) => {
 export const logoutUser = async () => {
   try {
     await signOut(auth);
-    localStorage.removeItem("userRole"); // remove saved role
+    localStorage.removeItem("userRole");
     return { success: true };
   } catch (error) {
     return { success: false, error: mapAuthError(error) };

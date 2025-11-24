@@ -22,13 +22,15 @@ const Register = () => {
     e.preventDefault();
     setError("");
 
-    if (email === "ali@gmail.com") {
-      setError("Manager registration is restricted.");
+    // ❌ Prevent manager from registering through student form
+    if (email === "manager@fjwu.edu.pk") {
+      setError("You cannot register as manager. Manager account is fixed.");
       return;
     }
 
-    if (!email.endsWith("@cs.fjwu.edu.pk")) {
-      setError("Please use your FJWU CS student email.");
+    // ✅ Updated student domain validation
+    if (!email.endsWith("@fjwu.edu.pk")) {
+      setError("Only FJWU student emails (@fjwu.edu.pk) are allowed.");
       return;
     }
 
@@ -70,20 +72,23 @@ const Register = () => {
               onChange={(e) => setName(e.target.value)}
               required
             />
+
             <input
               type="email"
-              placeholder="University Email (cs.fjwu.edu.pk)"
+              placeholder="University Email (@fjwu.edu.pk)"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
+
             <input
               type="password"
-              placeholder="Password (min. 6 characters)"
+              placeholder="Password (minimum 6 characters)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+
             <button type="submit" disabled={loading}>
               {loading ? "Registering..." : "Register Now"}
             </button>
