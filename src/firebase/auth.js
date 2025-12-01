@@ -7,57 +7,50 @@ import {
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 
-/* -------------------------------------------------------
-   REGISTER USER (Auth + Firestore Profile)
-   Student domain = @fjwu.edu.pk
-   Manager account = manager@fjwu.edu.pk (cannot register)
-------------------------------------------------------- */
+/* --------------------------
+   REGISTER USER (STUDENTS ONLY)
+--------------------------- */
 export const registerUser = async (name, email, password) => {
   try {
-    if (!name || !email || !password) {
+    const emailTrimmed = email.trim().toLowerCase();
+
+    if (!name || !emailTrimmed || !password) {
       return { success: false, error: "All fields are required." };
     }
 
-    let role = "student"; // default role
-
     // ❌ Manager cannot register
-    if (email === "manager@fjwu.edu.pk") {
+    if (emailTrimmed === "manager@fjwu.edu.pk") {
+      return { success: false, error: "Manager account is fixed and cannot register." };
+    }
+
+    // ✅ Allow student emails from all departments: xyz@cs.fjwu.edu.pk, xyz@ai.fjwu.edu.pk, etc.
+    const studentEmailRegex = /^[a-zA-Z0-9.-]+@[a-z]{2,10}\.fjwu\.edu\.pk$/;
+    if (!studentEmailRegex.test(emailTrimmed)) {
       return {
         success: false,
-        error: "Manager account cannot be created here.",
+        error: "Only FJWU student emails (like xyz@cs.fjwu.edu.pk) are allowed.",
       };
     }
 
-    // ✅ Student email validation
-    const allowedDomain = "@fjwu.edu.pk";
-    if (!email.endsWith(allowedDomain)) {
-      return {
-        success: false,
-        error: `Only FJWU students can register. Use your ${allowedDomain} email.`,
-      };
+    if (password.length < 6) {
+      return { success: false, error: "Password must be at least 6 characters." };
     }
 
     // Create user in Firebase Auth
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
+    const userCredential = await createUserWithEmailAndPassword(auth, emailTrimmed, password);
     const user = userCredential.user;
 
     // Save profile in Firestore
     const profile = {
       uid: user.uid,
       name,
-      email,
-      role,
+      email: emailTrimmed,
+      role: "student",
       createdAt: new Date(),
     };
-
     await setDoc(doc(db, "users", user.uid), profile);
 
-    // Save role locally
-    localStorage.setItem("userRole", role);
+    localStorage.setItem("userRole", "student");
 
     return { success: true, user, data: profile };
   } catch (error) {
@@ -65,43 +58,45 @@ export const registerUser = async (name, email, password) => {
   }
 };
 
-/* -------------------------------------------------------
-   LOGIN USER
-   Auto-assign role:
-   manager@fjwu.edu.pk → manager
-   students → student
-------------------------------------------------------- */
+/* --------------------------
+   LOGIN USER (STUDENTS & MANAGER)
+--------------------------- */
 export const loginUser = async (email, password) => {
   try {
-    if (!email || !password) {
+    const emailTrimmed = email.trim().toLowerCase();
+
+    if (!emailTrimmed || !password) {
       return { success: false, error: "Email and password are required." };
     }
 
-    // Firebase Login
-    const userCredential = await signInWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
+    // ✅ Manager login only
+    if (emailTrimmed === "manager@fjwu.edu.pk") {
+      if (password !== "manager@123") {
+        return { success: false, error: "Incorrect manager password." };
+      }
+
+      const userCredential = await signInWithEmailAndPassword(auth, emailTrimmed, password);
+      const user = userCredential.user;
+
+      const profile = { uid: user.uid, name: "Manager", email: emailTrimmed, role: "manager" };
+      localStorage.setItem("userRole", "manager");
+
+      return { success: true, user, data: profile };
+    }
+
+    // ✅ Student login
+    const userCredential = await signInWithEmailAndPassword(auth, emailTrimmed, password);
     const user = userCredential.user;
 
-    // Read Firestore profile
     const profileRef = doc(db, "users", user.uid);
     const profileSnapshot = await getDoc(profileRef);
 
     if (!profileSnapshot.exists()) {
-      return { success: false, error: "User profile not found." };
+      return { success: false, error: "Student not registered. Please register first." };
     }
 
-    let profileData = profileSnapshot.data();
-
-    // ✅ FORCE MANAGER ROLE
-    if (user.email === "manager@fjwu.edu.pk") {
-      profileData.role = "manager";
-    }
-
-    // Save role locally
-    localStorage.setItem("userRole", profileData.role);
+    const profileData = profileSnapshot.data();
+    localStorage.setItem("userRole", profileData.role || "student");
 
     return { success: true, user, data: profileData };
   } catch (error) {
@@ -109,9 +104,9 @@ export const loginUser = async (email, password) => {
   }
 };
 
-/* -------------------------------------------------------
+/* --------------------------
    LOGOUT USER
-------------------------------------------------------- */
+--------------------------- */
 export const logoutUser = async () => {
   try {
     await signOut(auth);
@@ -122,9 +117,9 @@ export const logoutUser = async () => {
   }
 };
 
-/* -------------------------------------------------------
-   FRIENDLY FIREBASE ERROR MESSAGES
-------------------------------------------------------- */
+/* --------------------------
+   FRIENDLY FIREBASE ERRORS
+--------------------------- */
 const mapAuthError = (error) => {
   switch (error.code) {
     case "auth/email-already-in-use":

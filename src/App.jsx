@@ -10,17 +10,17 @@ import Register from "./screens/auth/Register";
 // STUDENT SCREENS
 import MyRegistrations from "./screens/student/MyRegistrations";
 import MyEvents from "./screens/student/MyEvents";
-import Profile from "./screens/student/Profile";
-import Settings from "./screens/student/Settings";
+import AllEvents from "./screens/common/AllEvents";
+import EventDescription from "./screens/common/EventDescription";
+import Search from "./screens/common/Search";
+import StudentProfile from "./screens/student/Profile";
+import StudentSettings from "./screens/student/Settings";
 
 // MANAGER SCREENS
 import CreateEvent from "./screens/manager/CreateEvent";
 import Analytics from "./screens/manager/Analytics";
-
-// COMMON SCREENS
-import AllEvents from "./screens/common/AllEvents";
-import EventDescription from "./screens/common/EventDescription";
-import Search from "./screens/common/Search";
+import ManagerProfile from "./screens/manager/Profile";
+import ManagerSettings from "./screens/manager/Settings";
 
 // FIREBASE
 import { auth, db } from "./firebase/firebaseConfig";
@@ -35,23 +35,24 @@ function App() {
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // -------------------------------------------------------
-  // AUTH LISTENER — RUNS ONCE
-  // -------------------------------------------------------
+  // ------------------------
+  // AUTH LISTENER
+  // ------------------------
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
+        let fetchedRole = null;
 
-        // Fetch role from Firestore
-        const docRef = doc(db, "users", currentUser.uid);
-        const docSnap = await getDoc(docRef);
-
-        let fetchedRole = docSnap.exists() ? docSnap.data().role : null;
-
-        // 🔥 FORCE MANAGER ROLE FOR NEW MANAGER EMAIL
+        // Manager fixed email
         if (currentUser.email === "manager@fjwu.edu.pk") {
           fetchedRole = "manager";
+        } else {
+          const userDocRef = doc(db, "users", currentUser.uid);
+          const userSnap = await getDoc(userDocRef);
+          if (userSnap.exists()) {
+            fetchedRole = userSnap.data().role || "student";
+          }
         }
 
         setRole(fetchedRole);
@@ -68,18 +69,18 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  // -------------------------------------------------------
-  // LOADING SCREEN (PREVENT UI FLASH)
-  // -------------------------------------------------------
+  // ------------------------
+  // LOADING SCREEN
+  // ------------------------
   if (loading) {
     return (
       <div
         style={{
           height: "100vh",
           display: "flex",
-          justifyContent: "center",
           alignItems: "center",
-          fontSize: "24px",
+          justifyContent: "center",
+          fontSize: "22px",
           fontWeight: "bold",
         }}
       >
@@ -88,39 +89,39 @@ function App() {
     );
   }
 
-  // -------------------------------------------------------
-  // PROTECTED ROUTE
-  // -------------------------------------------------------
-  const ProtectedRoute = ({ children, allowed }) => {
+  // ------------------------
+  // PROTECTED ROUTE COMPONENTS
+  // ------------------------
+  const ProtectedRoute = ({ children, allowedRoles }) => {
     if (!user) return <Navigate to="/login" replace />;
-    if (!allowed.includes(role)) return <Navigate to="/" replace />;
+    if (!allowedRoles.includes(role)) return <Navigate to="/" replace />;
     return children;
   };
 
-  const StudentRoute = ({ children }) => (
-    <ProtectedRoute allowed={["student"]}>{children}</ProtectedRoute>
+  const StudentOnly = ({ children }) => (
+    <ProtectedRoute allowedRoles={["student"]}>{children}</ProtectedRoute>
   );
 
-  const ManagerRoute = ({ children }) => (
-    <ProtectedRoute allowed={["manager"]}>{children}</ProtectedRoute>
+  const ManagerOnly = ({ children }) => (
+    <ProtectedRoute allowedRoles={["manager"]}>{children}</ProtectedRoute>
   );
 
-  const BothRoute = ({ children }) => (
-    <ProtectedRoute allowed={["student", "manager"]}>{children}</ProtectedRoute>
+  const BothRoles = ({ children }) => (
+    <ProtectedRoute allowedRoles={["student", "manager"]}>{children}</ProtectedRoute>
   );
 
-  // -------------------------------------------------------
-  // AUTH ROUTES (LOGIN/REGISTER REDIRECTION)
-  // -------------------------------------------------------
+  // ------------------------
+  // AUTH REDIRECT FOR LOGIN/REGISTER
+  // ------------------------
   const AuthRedirect = ({ children }) => {
     if (user && role === "student") return <Navigate to="/events" replace />;
     if (user && role === "manager") return <Navigate to="/create-event" replace />;
     return children;
   };
 
-  // -------------------------------------------------------
+  // ------------------------
   // DEFAULT REDIRECT
-  // -------------------------------------------------------
+  // ------------------------
   const defaultRedirect = () => {
     if (role === "manager") return "/create-event";
     if (role === "student") return "/events";
@@ -139,22 +140,22 @@ function App() {
         <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
         <Route path="/register" element={<AuthRedirect><Register /></AuthRedirect>} />
 
-        {/* COMMON ROUTES */}
-        <Route path="/events" element={<BothRoute><AllEvents /></BothRoute>} />
-        <Route path="/event/:id" element={<BothRoute><EventDescription /></BothRoute>} />
-        <Route path="/search" element={<BothRoute><Search /></BothRoute>} />
-
         {/* STUDENT ROUTES */}
-        <Route path="/my-registrations" element={<StudentRoute><MyRegistrations /></StudentRoute>} />
-        <Route path="/profile" element={<StudentRoute><Profile /></StudentRoute>} />
-        <Route path="/settings" element={<StudentRoute><Settings /></StudentRoute>} />
+        <Route path="/events" element={<StudentOnly><AllEvents /></StudentOnly>} />
+        <Route path="/event/:id" element={<StudentOnly><EventDescription /></StudentOnly>} />
+        <Route path="/search" element={<StudentOnly><Search /></StudentOnly>} />
+        <Route path="/my-events" element={<StudentOnly><MyEvents /></StudentOnly>} />
+        <Route path="/my-registrations" element={<StudentOnly><MyRegistrations /></StudentOnly>} />
+        <Route path="/profile" element={<StudentOnly><StudentProfile /></StudentOnly>} />
+        <Route path="/settings" element={<StudentOnly><StudentSettings /></StudentOnly>} />
 
         {/* MANAGER ROUTES */}
-        <Route path="/create-event" element={<ManagerRoute><CreateEvent /></ManagerRoute>} />
-        <Route path="/analytics" element={<ManagerRoute><Analytics /></ManagerRoute>} />
-        <Route path="/my-events" element={<ManagerRoute><MyEvents /></ManagerRoute>} />
+        <Route path="/create-event" element={<ManagerOnly><CreateEvent /></ManagerOnly>} />
+        <Route path="/analytics" element={<ManagerOnly><Analytics /></ManagerOnly>} />
+        <Route path="/manager/profile" element={<ManagerOnly><ManagerProfile /></ManagerOnly>} />
+        <Route path="/manager/settings" element={<ManagerOnly><ManagerSettings /></ManagerOnly>} />
 
-        {/* FALLBACK */}
+        {/* FALLBACK ROUTE */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

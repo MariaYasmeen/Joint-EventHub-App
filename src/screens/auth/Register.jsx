@@ -11,7 +11,7 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // ✅ Redirect if already logged in
+  // Redirect if already logged in
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     if (role === "student") navigate("/events", { replace: true });
@@ -22,21 +22,26 @@ const Register = () => {
     e.preventDefault();
     setError("");
 
-    // ❌ Prevent manager from registering through student form
-    if (email === "manager@fjwu.edu.pk") {
+    if (email.trim().toLowerCase() === "manager@fjwu.edu.pk") {
       setError("You cannot register as manager. Manager account is fixed.");
       return;
     }
 
-    // ✅ Updated student domain validation
-    if (!email.endsWith("@fjwu.edu.pk")) {
-      setError("Only FJWU student emails (@fjwu.edu.pk) are allowed.");
+    // Allow all department emails: xyz@cs.fjwu.edu.pk, xyz@ai.fjwu.edu.pk, etc.
+    const studentEmailRegex = /^[a-zA-Z0-9.-]+@[a-z]{2,10}\.fjwu\.edu\.pk$/;
+    if (!studentEmailRegex.test(email.trim().toLowerCase())) {
+      setError("Only FJWU student emails (like xyz@cs.fjwu.edu.pk) are allowed.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
       return;
     }
 
     setLoading(true);
     try {
-      const result = await registerUser(name, email, password);
+      const result = await registerUser(name, email.trim(), password);
       setLoading(false);
 
       if (result.success) {
@@ -49,6 +54,7 @@ const Register = () => {
     } catch (err) {
       setLoading(false);
       setError("Something went wrong. Try again.");
+      console.error(err);
     }
   };
 
@@ -72,15 +78,13 @@ const Register = () => {
               onChange={(e) => setName(e.target.value)}
               required
             />
-
             <input
               type="email"
-              placeholder="University Email (@fjwu.edu.pk)"
+              placeholder="University Email (like xyz@cs.fjwu.edu.pk)"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
-
             <input
               type="password"
               placeholder="Password (minimum 6 characters)"
@@ -88,7 +92,6 @@ const Register = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-
             <button type="submit" disabled={loading}>
               {loading ? "Registering..." : "Register Now"}
             </button>

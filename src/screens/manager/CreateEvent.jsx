@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import "./CreateEvent.css";
 import { createEvent } from "../../Firebase/events";
-import { auth } from "../../Firebase/firebaseConfig";
+import { auth } from "../../firebase/firebaseConfig";
 
 const CreateEvent = () => {
   const [formData, setFormData] = useState({

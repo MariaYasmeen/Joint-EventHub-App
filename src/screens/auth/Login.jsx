@@ -4,46 +4,43 @@ import "./Login.css";
 import { loginUser } from "../../firebase/auth";
 
 const Login = () => {
-  const [role, setRole] = useState(""); // Selected role
+  const [role, setRole] = useState(""); 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // 🔐 Prevent logged-in users from viewing login again
+  // 🔐 Redirect already logged-in users
   useEffect(() => {
     const savedRole = localStorage.getItem("userRole");
     if (savedRole === "student") navigate("/events", { replace: true });
     if (savedRole === "manager") navigate("/create-event", { replace: true });
   }, [navigate]);
 
-  // ------------------ LOGIN HANDLER ------------------
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
 
     if (!role) return setError("Please select a login role.");
 
-    // -------- ROLE-BASED EMAIL VALIDATION --------
-    if (role === "manager" && email !== "manager@fjwu.edu.pk") {
+    if (role === "manager" && email.trim().toLowerCase() !== "manager@fjwu.edu.pk") {
       return setError("Manager email must be: manager@fjwu.edu.pk");
     }
 
-    // Allow all FJWU department emails
-    if (role === "student" && !email.includes("fjwu.edu.pk")) {
+    if (role === "student" && !email.trim().toLowerCase().endsWith("fjwu.edu.pk")) {
       return setError("Students must use an official FJWU email.");
     }
 
     setLoading(true);
-
     try {
-      const result = await loginUser(email, password);
+      const result = await loginUser(email.trim(), password);
       setLoading(false);
 
       if (result.success) {
         localStorage.setItem("userRole", role);
 
+        // Stable routing: navigate only once
         if (role === "student") navigate("/events", { replace: true });
         if (role === "manager") navigate("/create-event", { replace: true });
       } else {
@@ -61,19 +58,18 @@ const Login = () => {
       <div className="login-container">
         <div className="login-card">
 
-          {/* LEFT SIDE IMAGE/STYLING */}
+          {/* LEFT IMAGE/INFO */}
           <div className="login-image">
             <h2>Welcome Back</h2>
             <p>Select your role and login</p>
           </div>
 
-          {/* RIGHT SIDE FORM */}
+          {/* LOGIN FORM */}
           <div className="login-form">
             <h2 className="form-title">Login</h2>
-
             {error && <p className="error-message">{error}</p>}
 
-            {/* -------- SLIDING ROLE SELECTION -------- */}
+            {/* ROLE SELECTION */}
             <div className="role-toggle">
               <input
                 type="radio"
@@ -96,7 +92,6 @@ const Login = () => {
               <div className="slider"></div>
             </div>
 
-            {/* -------- LOGIN FORM -------- */}
             <form onSubmit={handleLogin}>
               <input
                 type="email"
@@ -105,7 +100,6 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-
               <input
                 type="password"
                 placeholder="Enter password"

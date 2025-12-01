@@ -1,7 +1,7 @@
 // src/components/Navbar.jsx
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { auth } from "../firebase/firebaseConfig"; // fixed import
+import { auth } from "../firebase/firebaseConfig";
 import { signOut } from "firebase/auth";
 import "./Navbar.css";
 
@@ -10,16 +10,15 @@ const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const role = localStorage.getItem("userRole"); // get user role
+  const role = localStorage.getItem("userRole"); // student or manager
 
   const toggleSidebar = () => setSidebarActive(!sidebarActive);
 
-  // 🔓 Logout Function
   const handleLogout = async () => {
     try {
-      await signOut(auth);                   // Firebase sign out
-      localStorage.removeItem("userRole");   // Remove saved role
-      navigate("/login");                    // Redirect to login screen
+      await signOut(auth);
+      localStorage.removeItem("userRole");
+      navigate("/login");
     } catch (err) {
       console.error("Logout failed:", err);
       alert("Logout failed. Try again.");
@@ -30,6 +29,7 @@ const Navbar = () => {
     <>
       {/* ---------------------- NAVBAR ---------------------- */}
       <header className="navbar fixed-navbar">
+        
         {/* Hamburger menu */}
         <div className="menu-btn" onClick={toggleSidebar}>
           <div className="bar"></div>
@@ -49,23 +49,28 @@ const Navbar = () => {
         {/* Right Icons */}
         <div className="nav-right">
           <div className="nav-icons">
-            <Link to="/events">
-              <span className="material-icons">home</span>
-            </Link>
 
+            {/* HOME */}
+            {role === "student" && (
+              <Link to="/events">
+                <span className="material-icons">home</span>
+              </Link>
+            )}
             {role === "manager" && (
-              <Link to="/my-events">
-                <span className="material-icons">event</span>
+              <Link to="/create-event">
+                <span className="material-icons">home</span>
               </Link>
             )}
 
-            <Link to="/settings">
+            {/* SETTINGS */}
+            <Link to={role === "student" ? "/settings" : "/manager/settings"}>
               <span className="material-icons">settings</span>
             </Link>
 
+            {/* NOTIFICATIONS */}
             <span className="material-icons">notifications</span>
 
-            {/* Logout Icon */}
+            {/* LOGOUT */}
             <button className="logout-btn" onClick={handleLogout}>
               <span className="material-icons">logout</span>
             </button>
@@ -78,51 +83,59 @@ const Navbar = () => {
         <h2 className="sidebar-logo">EVENT UI</h2>
 
         <ul className="menu">
-          {/* Common Links */}
+
+          {/* ---------------- COMMON PAGES ---------------- */}
           <li className={location.pathname === "/events" ? "active" : ""}>
             <Link to="/events">All Events</Link>
           </li>
+
           <li className={location.pathname === "/search" ? "active" : ""}>
             <Link to="/search">Search</Link>
           </li>
 
-          {/* Student Links */}
+          {/* ---------------- STUDENT PANEL ---------------- */}
           {role === "student" && (
             <>
+              <li className={location.pathname === "/my-events" ? "active" : ""}>
+                <Link to="/my-events">My Events</Link>
+              </li>
+
               <li className={location.pathname === "/my-registrations" ? "active" : ""}>
                 <Link to="/my-registrations">My Registrations</Link>
               </li>
+
               <li className={location.pathname === "/profile" ? "active" : ""}>
                 <Link to="/profile">Profile</Link>
               </li>
+
               <li className={location.pathname === "/settings" ? "active" : ""}>
                 <Link to="/settings">Settings</Link>
               </li>
             </>
           )}
 
-          {/* Manager Links */}
+          {/* ---------------- MANAGER PANEL ---------------- */}
           {role === "manager" && (
             <>
               <li className={location.pathname === "/create-event" ? "active" : ""}>
                 <Link to="/create-event">Create Event</Link>
               </li>
+
               <li className={location.pathname === "/analytics" ? "active" : ""}>
                 <Link to="/analytics">Analytics</Link>
               </li>
-              <li className={location.pathname === "/my-events" ? "active" : ""}>
-                <Link to="/my-events">My Events</Link>
+
+              <li className={location.pathname === "/manager/profile" ? "active" : ""}>
+                <Link to="/manager/profile">Profile</Link>
               </li>
-              <li className={location.pathname === "/profile" ? "active" : ""}>
-                <Link to="/profile">Profile</Link>
-              </li>
-              <li className={location.pathname === "/settings" ? "active" : ""}>
-                <Link to="/settings">Settings</Link>
+
+              <li className={location.pathname === "/manager/settings" ? "active" : ""}>
+                <Link to="/manager/settings">Settings</Link>
               </li>
             </>
           )}
 
-          {/* Logout Button in Sidebar */}
+          {/* LOGOUT */}
           <li>
             <button className="sidebar-logout-btn" onClick={handleLogout}>
               Logout
@@ -131,7 +144,7 @@ const Navbar = () => {
         </ul>
       </aside>
 
-      {/* Overlay when sidebar is open */}
+      {/* Overlay */}
       {sidebarActive && <div className="overlay" onClick={toggleSidebar}></div>}
     </>
   );
